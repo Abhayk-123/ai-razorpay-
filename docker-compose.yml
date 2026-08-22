@@ -1,0 +1,40 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.example
+    environment:
+      - DATABASE_URL=sqlite:////app/data/recoverpilot.db
+      - DEMO_TIME_SCALE=60
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./data:/app/data
+    command: uvicorn recoverpilot.api.main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build: .
+    env_file:
+      - .env.example
+    environment:
+      - DATABASE_URL=sqlite:////app/data/recoverpilot.db
+      - DEMO_TIME_SCALE=60
+      - WORKER_POLL_SECONDS=2
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./data:/app/data
+    depends_on:
+      - api
+    command: python -m recoverpilot.workers.recovery_worker --poll 2
+
+  ui:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - api
+    command: streamlit run recoverpilot/ui/app.py --server.port 8501 --server.address 0.0.0.0

@@ -1,0 +1,74 @@
+{
+  "playbooks": [
+    {
+      "id": "PB_INSUFFICIENT_FUNDS",
+      "decline_codes": ["INSUFFICIENT_FUNDS"],
+      "title": "Insufficient funds soft recovery",
+      "recoverable": true,
+      "preferred_action": "schedule_retry",
+      "retry_after_hours": 36,
+      "channel": "silent_retry",
+      "guidance": "Soft decline. Prefer a delayed retry near salary/credit cycles (24-48h). Avoid aggressive same-day retries. If second failure, send polite dunning with update-payment CTA."
+    },
+    {
+      "id": "PB_ISSUER_TIMEOUT",
+      "decline_codes": ["ISSUER_TIMEOUT", "NETWORK_ERROR"],
+      "title": "Issuer/network transient failure",
+      "recoverable": true,
+      "preferred_action": "schedule_retry",
+      "retry_after_hours": 1,
+      "channel": "silent_retry",
+      "guidance": "Transient infrastructure decline. Retry quickly (15-120 minutes). Do not message the customer on first transient failure."
+    },
+    {
+      "id": "PB_BANK_DECLINE_SOFT",
+      "decline_codes": ["BANK_DECLINE_SOFT", "TEMPORARY_HOLD"],
+      "title": "Soft bank decline",
+      "recoverable": true,
+      "preferred_action": "schedule_retry",
+      "retry_after_hours": 12,
+      "channel": "silent_retry",
+      "guidance": "Issuer soft decline. Retry once after 8-24h. If amount is high and p_recovery is moderate, escalate for manual review."
+    },
+    {
+      "id": "PB_AUTH_REQUIRED",
+      "decline_codes": ["AUTHENTICATION_REQUIRED"],
+      "title": "Customer authentication required",
+      "recoverable": true,
+      "preferred_action": "send_dunning",
+      "retry_after_hours": 6,
+      "channel": "email_sms",
+      "guidance": "Customer action needed (3DS/OTP/mandate). Send dunning with secure payment-update link. Silent retry alone often fails."
+    },
+    {
+      "id": "PB_EXCEEDS_FREQUENCY",
+      "decline_codes": ["EXCEEDS_FREQUENCY"],
+      "title": "Frequency limit hit",
+      "recoverable": true,
+      "preferred_action": "schedule_retry",
+      "retry_after_hours": 24,
+      "channel": "silent_retry",
+      "guidance": "Too many attempts in a window. Back off at least 24h. Cap retries to avoid issuer blacklisting."
+    },
+    {
+      "id": "PB_HARD_DECLINE",
+      "decline_codes": ["DO_NOT_HONOR_HARD", "STOLEN_CARD", "LOST_CARD", "PICKUP_CARD", "FRAUD_SUSPECTED", "INVALID_CARD", "CLOSED_ACCOUNT"],
+      "title": "Hard decline — do not retry",
+      "recoverable": false,
+      "preferred_action": "do_not_retry",
+      "retry_after_hours": null,
+      "channel": "none",
+      "guidance": "Hard decline or fraud signal. Never auto-retry. Ask customer to update payment method through a secure flow only if policy allows."
+    },
+    {
+      "id": "PB_DEFAULT_SOFT",
+      "decline_codes": ["UNKNOWN_SOFT"],
+      "title": "Default soft-decline playbook",
+      "recoverable": true,
+      "preferred_action": "schedule_retry",
+      "retry_after_hours": 18,
+      "channel": "silent_retry",
+      "guidance": "Unknown soft decline. Conservative single retry with monitoring. Prefer human escalation for high ticket amounts."
+    }
+  ]
+}
