@@ -5,6 +5,17 @@ Intelligent Failed Payment Recovery Engine — Razorpay AI Buildathon
 ## One-line pitch
 RecoverPilot predicts which failed payments can be saved, schedules policy-constrained recovery actions, executes them via a worker, records outcomes, and can retrain from feedback.
 
+## Live demo (Vercel)
+- App UI: https://ai-razorpay.vercel.app  
+- API health: https://ai-razorpay.vercel.app/api/health  
+- API docs: https://ai-razorpay.vercel.app/api/docs  
+- Project dashboard: https://vercel.com/abhayk-123s-projects/ai-razorpay  
+
+Demo API key: `rp_demo_key_change_me`
+
+> Vercel hosts a **lightweight serverless** demo (playbook heuristics).  
+> Full sklearn model + Streamlit + background worker run **locally**.
+
 ## Production-like local loop
 ```
 payment.failed webhook
@@ -32,7 +43,7 @@ This starts **API + worker + Streamlit Ops UI**.
 ```bash
 py -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-local.txt
 copy .env.example .env
 
 python -m recoverpilot.data.generate --rows 15000
@@ -55,54 +66,17 @@ Default API key (local only): `rp_demo_key_change_me` (header `X-API-Key`)
 2. **Jobs** → Process due jobs now (or wait for worker)  
 3. **KPIs** / **Failures** → see recovered / abandoned  
 4. **Retrain** → bump model version from outcomes  
-5. Or CLI:
-```bash
-python -m recoverpilot.scripts.fire_webhook --count 5
-python -m recoverpilot.workers.recovery_worker --once
-python -m recoverpilot.ml.retrain
-```
-
-## Key APIs
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| POST | `/webhooks/razorpay` | optional signature / API key | Ingest payment.failed |
-| GET | `/failures` | API key | List failures |
-| GET | `/jobs` | API key | List recovery jobs |
-| POST | `/jobs/process-due` | API key | Run due jobs now |
-| POST | `/admin/seed` | API key | Seed sample failures |
-| POST | `/admin/retrain` | API key | Retrain from feedback |
-| POST | `/recover/recommend` | — | Interview-style recommend |
-| POST | `/recover/simulate` | — | Offline baseline comparison |
 
 ## Docker
 ```bash
 docker compose up --build
 ```
-Services: `api`, `worker`, `ui`
 
 ## Honest limits
-- Retry/dunning execution is **local simulation** (no live card charges)
-- Dataset starts **synthetic**; outcomes feed a real retrain loop
+- Retry/dunning execution is **simulated** (no live card charges)
+- Dataset starts **synthetic**; outcomes feed a retrain loop locally
+- Vercel edition uses heuristics due to serverless size limits
 - Set `RAZORPAY_WEBHOOK_SECRET` when you plug real Test Mode webhooks later
-
-## Project layout
-```
-recoverpilot/
-  api/            FastAPI
-  agent/          Playbooks + constrained recovery decisions
-  core/           Config, DB models, auth, schemas
-  integrations/   Razorpay-shaped webhooks
-  ml/             Train / score / retrain
-  services/       Orchestrator + pipeline
-  workers/        Recovery job worker
-  ui/             Streamlit ops console
-  scripts/        fire_webhook helper
-```
-
-## Tests
-```bash
-pytest -q
-```
 
 ## License
 MIT — student portfolio / Buildathon submission.
