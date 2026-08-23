@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "functions": {
+    "api/index.py": {
+      "excludeFiles": "{.venv/**,artifacts/**,data/**,tests/**,docs/**,**/*.pyc,__pycache__/**}"
+    }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/docs", "destination": "/api/index" },
+    { "source": "/openapi.json", "destination": "/api/index" },
+    { "source": "/redoc", "destination": "/api/index" },
+    { "source": "/webhooks/(.*)", "destination": "/api/index" },
+    { "source": "/recover/(.*)", "destination": "/api/index" },
+    { "source": "/admin/(.*)", "destination": "/api/index" },
+    { "source": "/failures", "destination": "/api/index" },
+    { "source": "/jobs/(.*)", "destination": "/api/index" },
+    { "source": "/jobs", "destination": "/api/index" },
+    { "source": "/outcomes", "destination": "/api/index" },
+    { "source": "/kpis", "destination": "/api/index" }
+  ]
+}

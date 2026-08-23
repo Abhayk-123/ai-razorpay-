@@ -4,13 +4,12 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .env
+.env.local
+.vercel
 data/*.csv
 data/*.db
 data/chroma/
 data/outbox/
-artifacts/*.joblib
-artifacts/*.json
-artifacts/model_version.txt
 *.log
 .DS_Store
 .streamlit/secrets.toml
