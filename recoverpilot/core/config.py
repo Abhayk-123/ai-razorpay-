@@ -45,6 +45,8 @@ DATABASE_URL = _env("DATABASE_URL", f"sqlite:///{DB_PATH.as_posix()}")
 API_HOST = _env("API_HOST", "127.0.0.1")
 API_PORT = int(_env("API_PORT", "8000"))
 API_BASE_URL = _env("API_BASE_URL", f"http://{API_HOST}:{API_PORT}")
+# Public URL for magic links (ngrok / deployed origin). Falls back to API_BASE_URL.
+PUBLIC_BASE_URL = _env("PUBLIC_BASE_URL", API_BASE_URL).rstrip("/")
 
 RANDOM_SEED = 42
 RETRY_COST_INR = float(_env("RETRY_COST_INR", "2.5"))
@@ -55,6 +57,15 @@ DEMO_TIME_SCALE = float(_env("DEMO_TIME_SCALE", "60"))
 WORKER_POLL_SECONDS = float(_env("WORKER_POLL_SECONDS", "2"))
 
 RAZORPAY_WEBHOOK_SECRET = _env("RAZORPAY_WEBHOOK_SECRET", "").strip()
+RAZORPAY_KEY_ID = _env("RAZORPAY_KEY_ID", "").strip()
+RAZORPAY_KEY_SECRET = _env("RAZORPAY_KEY_SECRET", "").strip()
+USE_RAZORPAY_PAYMENT_LINKS = _env("USE_RAZORPAY_PAYMENT_LINKS", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
 DEMO_MERCHANT_ID = _env("DEMO_MERCHANT_ID", "mch_demo_001")
 DEMO_MERCHANT_NAME = _env("DEMO_MERCHANT_NAME", "Demo Merchant")
 DEMO_API_KEY = _env("DEMO_API_KEY", "rp_demo_key_change_me")

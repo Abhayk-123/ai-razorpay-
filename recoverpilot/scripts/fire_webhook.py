@@ -10,7 +10,7 @@ import secrets
 
 import httpx
 
-from recoverpilot.core.config import API_BASE_URL, DEMO_API_KEY, DEMO_WEBHOOK_SECRET
+from recoverpilot.core.config import API_BASE_URL, DEMO_API_KEY, DEMO_WEBHOOK_SECRET, RAZORPAY_WEBHOOK_SECRET
 from recoverpilot.integrations.razorpay_webhooks import build_sample_payment_failed
 
 
@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=5)
     parser.add_argument("--base", default=API_BASE_URL)
     parser.add_argument("--api-key", default=DEMO_API_KEY)
-    parser.add_argument("--secret", default=DEMO_WEBHOOK_SECRET)
+    parser.add_argument("--secret", default=RAZORPAY_WEBHOOK_SECRET or DEMO_WEBHOOK_SECRET)
     parser.add_argument(
         "--decline",
         default=None,

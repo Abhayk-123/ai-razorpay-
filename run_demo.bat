@@ -35,7 +35,11 @@ start "RecoverPilot UI" cmd /k ".venv\Scripts\python.exe -m streamlit run recove
 
 echo.
 echo Open:
-echo   API docs: http://127.0.0.1:8000/docs
-echo   Ops UI:   http://127.0.0.1:8501
-echo   Demo key: see /admin/demo-credentials or .env DEMO_API_KEY
+echo   Recruiter UI: http://127.0.0.1:8000/console/
+echo   Story JSON:   http://127.0.0.1:8000/demo/story
+echo   API docs:     http://127.0.0.1:8000/docs
+echo   Ops UI:       http://127.0.0.1:8501
+echo   Demo key:     see /admin/demo-credentials or .env DEMO_API_KEY
+start "" "http://127.0.0.1:8000/console/"
+start "" "http://127.0.0.1:8501"
 endlocal

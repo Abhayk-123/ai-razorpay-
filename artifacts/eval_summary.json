@@ -1,0 +1,14 @@
+{
+  "sample_size": 500,
+  "baseline_recovered_inr": 129588.04,
+  "recoverpilot_recovered_inr": 157262.0,
+  "baseline_retries": 415,
+  "recoverpilot_retries": 415,
+  "relative_lift_pct": 21.36,
+  "wasted_retry_reduction_pct": 0.0,
+  "hard_declines_in_sample": 85,
+  "hard_declines_auto_retried": 0,
+  "hard_decline_block_rate_pct": 100.0,
+  "notes": "Offline simulation on synthetic labeled failures (n=500). RecoverPilot recovered ~21% more INR vs blind soft-retry after cost. Hard declines are policy-blocked from auto-retry (100%). Relative lift is a demo KPI, not production causal A/B lift.",
+  "source": "canonical_demo_story"
+}

@@ -1,12 +1,12 @@
 {
   "model_name": "sklearn_gboost",
-  "rows": 15003,
-  "feedback_rows": 3,
-  "positive_rate": 0.45244284476438046,
-  "roc_auc": 0.7830553954519418,
-  "pr_auc": 0.7239611716746286,
-  "brier": 0.1846018920725683,
-  "precision_at_20pct": 0.7983333333333333,
+  "rows": 15017,
+  "feedback_rows": 17,
+  "positive_rate": 0.4527535459812213,
+  "roc_auc": 0.7791505653356233,
+  "pr_auc": 0.7201474118014443,
+  "brier": 0.18542428008073616,
+  "precision_at_20pct": 0.79,
   "notes": "Retrained on synthetic + feedback outcomes. Not production A/B lift.",
-  "version": "v3"
+  "version": "v5"
 }

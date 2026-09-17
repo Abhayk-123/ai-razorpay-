@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "installCommand": "pip install -r api/requirements.txt",
   "functions": {
     "api/index.py": {
       "excludeFiles": "{.venv/**,artifacts/**,data/**,tests/**,docs/**,**/*.pyc,__pycache__/**}"
@@ -10,6 +11,7 @@
     { "source": "/docs", "destination": "/api/index" },
     { "source": "/openapi.json", "destination": "/api/index" },
     { "source": "/redoc", "destination": "/api/index" },
+    { "source": "/demo/(.*)", "destination": "/api/index" },
     { "source": "/webhooks/(.*)", "destination": "/api/index" },
     { "source": "/recover/(.*)", "destination": "/api/index" },
     { "source": "/admin/(.*)", "destination": "/api/index" },

@@ -56,12 +56,50 @@ html, body, [class*="css"]  {
 }
 
 section[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, #0e1728 0%, #101a2d 100%);
-  border-right: 1px solid var(--line);
+  background: linear-gradient(180deg, #0e1728 0%, #101a2d 100%) !important;
+  border-right: 1px solid var(--line) !important;
+  min-width: 300px !important;
+  width: 300px !important;
+  transform: none !important;
+  margin-left: 0 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+section[data-testid="stSidebar"] > div {
+  width: 300px !important;
 }
 
 section[data-testid="stSidebar"] * {
   color: var(--text) !important;
+}
+
+/* Keep collapse chevron available but make sidebar hard to lose */
+[data-testid="stSidebarCollapsedControl"] {
+  background: #122038 !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+}
+
+.rp-side-brand {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.2rem 0;
+  color: #f4f7ff !important;
+}
+.rp-side-brand span { color: var(--accent) !important; }
+.rp-side-sub { color: var(--muted) !important; font-size: 0.82rem; margin: 0 0 1rem 0; }
+.rp-side-tip {
+  margin-top: 0.8rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted) !important;
+  font-size: 0.82rem;
+  background: rgba(255,255,255,0.02);
 }
 
 .rp-hero {
@@ -204,6 +242,13 @@ if "api_key" not in st.session_state:
     st.session_state.api_key = DEMO_API_KEY
 
 with st.sidebar:
+    st.markdown(
+        """
+        <p class="rp-side-brand">Recover<span>Pilot</span></p>
+        <p class="rp-side-sub">Ops console · AI Revenue Recovery</p>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown("### Connection")
     api_base = st.text_input("API base URL", API_BASE_URL)
     api_key = st.text_input("API key (X-API-Key)", st.session_state.api_key, type="password")
@@ -233,7 +278,14 @@ with st.sidebar:
             st.error(str(exc))
 
     st.markdown(
-        '<p class="rp-muted">Tip: start with Fire Webhook → Jobs → KPIs.</p>',
+        """
+        <div class="rp-side-tip">
+          <b>Pages</b> are the top tabs:<br/>
+          KPIs · Failures · Jobs · Fire Webhook · Recommend · Simulation · Retrain · About
+          <br/><br/>
+          Tip: start with <b>Fire Webhook → Seed</b>, then <b>Jobs</b>, then <b>KPIs</b>.
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -407,10 +459,17 @@ with tabs[5]:
     section("Baseline vs RecoverPilot", "Offline simulation on synthetic labeled failures.")
     ss = st.slider("Sample size", 100, 2000, 400, step=100)
     if st.button("Run simulation", type="primary"):
-        if mode == "In-process":
-            sim = orchestrator.simulate(ss).model_dump()
-        else:
-            sim = api("POST", "/recover/simulate", json={"sample_size": ss})
+        with st.spinner("Running simulation..."):
+            if mode == "In-process":
+                sim = orchestrator.simulate(ss).model_dump()
+            else:
+                sim = api("POST", "/recover/simulate", json={"sample_size": ss})
+            st.session_state["last_sim"] = sim
+
+    sim = st.session_state.get("last_sim")
+    if not sim:
+        st.info("Click **Run simulation** to see recovered-₹ comparison graphs.")
+    else:
         c1, c2, c3 = st.columns(3)
         with c1:
             kpi_box("Blind retry ₹", f"{sim['baseline_recovered_inr']:,.0f}")
@@ -418,14 +477,102 @@ with tabs[5]:
             kpi_box("RecoverPilot ₹", f"{sim['recoverpilot_recovered_inr']:,.0f}")
         with c3:
             kpi_box("Relative lift", f"{sim['relative_lift_pct']:.1f}%")
-        st.caption(sim["notes"])
-        chart_df = pd.DataFrame(
-            {
-                "policy": ["Blind retry", "RecoverPilot"],
-                "recovered_inr": [sim["baseline_recovered_inr"], sim["recoverpilot_recovered_inr"]],
-            }
-        )
-        st.bar_chart(chart_df.set_index("policy"))
+        st.caption(sim.get("notes", ""))
+
+        try:
+            import plotly.express as px
+            import plotly.graph_objects as go
+
+            recovered_df = pd.DataFrame(
+                {
+                    "Policy": ["Blind retry", "RecoverPilot"],
+                    "Recovered ₹": [
+                        float(sim["baseline_recovered_inr"]),
+                        float(sim["recoverpilot_recovered_inr"]),
+                    ],
+                }
+            )
+            fig1 = px.bar(
+                recovered_df,
+                x="Policy",
+                y="Recovered ₹",
+                color="Policy",
+                color_discrete_sequence=["#3d8bfd", "#1ec8a5"],
+                title="Recovered revenue comparison",
+            )
+            fig1.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(18,26,43,0.6)",
+                font_color="#e8eefc",
+                showlegend=False,
+                height=380,
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+
+            retries_df = pd.DataFrame(
+                {
+                    "Policy": ["Blind retry", "RecoverPilot"],
+                    "Retries": [
+                        int(sim.get("baseline_retries", 0)),
+                        int(sim.get("recoverpilot_retries", 0)),
+                    ],
+                }
+            )
+            fig2 = px.bar(
+                retries_df,
+                x="Policy",
+                y="Retries",
+                color="Policy",
+                color_discrete_sequence=["#3d8bfd", "#1ec8a5"],
+                title="Retry count comparison (lower can mean less waste)",
+            )
+            fig2.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(18,26,43,0.6)",
+                font_color="#e8eefc",
+                showlegend=False,
+                height=340,
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+
+            lift = float(sim.get("relative_lift_pct", 0))
+            waste = float(sim.get("wasted_retry_reduction_pct", 0))
+            fig3 = go.Figure(
+                data=[
+                    go.Bar(
+                        x=["Relative lift %", "Retry reduction %"],
+                        y=[lift, waste],
+                        marker_color=["#1ec8a5", "#f0b429"],
+                    )
+                ]
+            )
+            fig3.update_layout(
+                title="Lift & wasted-retry reduction",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(18,26,43,0.6)",
+                font_color="#e8eefc",
+                height=320,
+            )
+            st.plotly_chart(fig3, use_container_width=True)
+        except Exception:
+            # Fallback if plotly unavailable
+            chart_df = pd.DataFrame(
+                {
+                    "Blind retry": [sim["baseline_recovered_inr"]],
+                    "RecoverPilot": [sim["recoverpilot_recovered_inr"]],
+                },
+                index=["Recovered ₹"],
+            )
+            st.bar_chart(chart_df)
+            st.bar_chart(
+                pd.DataFrame(
+                    {
+                        "Blind retry": [sim.get("baseline_retries", 0)],
+                        "RecoverPilot": [sim.get("recoverpilot_retries", 0)],
+                    },
+                    index=["Retries"],
+                )
+            )
 
 with tabs[6]:
     section("Retrain from outcomes", "Export feedback labels and bump model version.")

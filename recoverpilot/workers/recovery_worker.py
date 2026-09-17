@@ -120,11 +120,22 @@ def execute_job(job_id: str) -> dict[str, Any]:
                 )
                 failure.status = FailureStatus.RECOVERED.value if ok else FailureStatus.EXECUTED.value
             elif action == RecoveryAction.SEND_DUNNING.value:
+                from recoverpilot.integrations.razorpay_payment_links import create_payment_link
+                from recoverpilot.services.magic_link import create_magic_link
+
+                magic = create_magic_link(failure.id, float(failure.amount_inr), failure.decline_code)
+                payment_link = create_payment_link(
+                    amount_inr=float(failure.amount_inr),
+                    failure_id=failure.id,
+                    customer_id=failure.customer_id,
+                )
+                portal_url = (payment_link or {}).get("short_url") or magic["url"]
                 subject = "Update your payment method"
                 body = (
                     f"Hi customer {failure.customer_id},\n"
                     f"Your payment of ₹{failure.amount_inr:.2f} failed ({failure.decline_code}).\n"
                     f"Please update payment details to continue your subscription.\n"
+                    f"Secure link (expires in 15 minutes, single invoice):\n{portal_url}\n"
                 )
                 channel = job.channel or "email_sms"
                 path = _write_outbox_file(failure.id, channel, subject, body)
@@ -137,11 +148,29 @@ def execute_job(job_id: str) -> dict[str, Any]:
                         status="sent_stub",
                     )
                 )
-                # Dunning itself is not recovery; simulate modest reopen rate
-                reopen = random.random() < 0.35 if failure.decline_code == "AUTHENTICATION_REQUIRED" else random.random() < 0.18
+                # Dunning itself is not recovery; portal confirm OR modest reopen simulation
+                # When magic link is issued we leave status scheduled/executed until customer confirms
+                # unless simulation reopen hits (keeps demo KPIs alive without clicking).
+                reopen = (
+                    random.random() < 0.35
+                    if failure.decline_code == "AUTHENTICATION_REQUIRED"
+                    else random.random() < 0.18
+                )
                 result["recovered"] = reopen
                 result["outbox_file"] = str(path)
-                result["mode"] = "dunning_stub"
+                result["magic_link_url"] = magic["url"]
+                result["magic_link_expires_at"] = magic["expires_at"]
+                if payment_link:
+                    result["razorpay_payment_link"] = payment_link
+                result["mode"] = "dunning_stub_with_magic_link"
+                # Persist portal URL on the job for ops UI
+                try:
+                    payload = json.loads(job.payload_json or "{}")
+                except json.JSONDecodeError:
+                    payload = {}
+                payload["magic_link_url"] = magic["url"]
+                payload["magic_link_expires_at"] = magic["expires_at"]
+                job.payload_json = json.dumps(payload)
                 s.add(
                     OutcomeRow(
                         failure_id=failure.id,

@@ -6,6 +6,8 @@ from typing import Any, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from recoverpilot.agent.rag import get_rag
 from recoverpilot.core import db
@@ -15,6 +17,7 @@ from recoverpilot.core.config import (
     DEMO_MERCHANT_ID,
     DEMO_TIME_SCALE,
     DEMO_WEBHOOK_SECRET,
+    PROJECT_ROOT,
     RAZORPAY_WEBHOOK_SECRET,
 )
 from recoverpilot.core.db import MerchantRow, OutcomeRow, RecoveryJobRow, session, utcnow, write_audit
@@ -38,12 +41,15 @@ from recoverpilot.integrations.razorpay_webhooks import (
 )
 from recoverpilot.ml.scorer import model_loaded
 from recoverpilot.services import orchestrator, pipeline
+from recoverpilot.services.demo_story import demo_story, write_eval_summary
+from recoverpilot.services.magic_link import confirm_magic_link, create_magic_link, inspect_magic_link
+from recoverpilot.ui.portal_html import portal_page
 from recoverpilot.workers.recovery_worker import execute_job, process_once
 
 app = FastAPI(
     title="RecoverPilot API",
     description="Production-like failed-payment recovery engine (AI Revenue Recovery)",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 app.add_middleware(
@@ -58,6 +64,10 @@ app.add_middleware(
 def _startup() -> None:
     db.get_engine()
     db.seed_demo_merchant()
+    try:
+        write_eval_summary()
+    except Exception:
+        pass
     try:
         from recoverpilot.ml.scorer import load_model_bundle
 
@@ -90,6 +100,12 @@ def health() -> HealthResponse:
             "merchant_id": DEMO_MERCHANT_ID,
         },
     )
+
+
+@app.get("/demo/story")
+def get_demo_story() -> dict[str, Any]:
+    """Recruiter-facing 60-second story + canonical proof numbers (no auth)."""
+    return demo_story()
 
 
 # ---- legacy / interview demo endpoints ----
@@ -128,7 +144,6 @@ def recent_events(limit: int = 50) -> list[dict]:
 def get_event(event_id: str) -> dict:
     row = db.get_event(event_id)
     if not row:
-        # fallback to failure table
         fail = db.get_failure(event_id)
         if fail:
             return db.failure_to_dict(fail)
@@ -154,7 +169,6 @@ async def razorpay_webhook(
         raise HTTPException(status_code=500, detail="Demo merchant not seeded")
 
     secret = RAZORPAY_WEBHOOK_SECRET or merchant.webhook_secret or DEMO_WEBHOOK_SECRET
-    # Dev mode: allow missing signature when no production secret set
     if RAZORPAY_WEBHOOK_SECRET:
         if not verify_signature(body, x_razorpay_signature, secret):
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
@@ -169,7 +183,6 @@ async def razorpay_webhook(
 
     event_name = payload.get("event") or payload.get("event_name") or "payment.failed"
     if event_name not in {"payment.failed", "payment.authorized"} and "payment" not in str(event_name):
-        # Still accept custom test payloads shaped like payment.failed
         pass
 
     event = normalize_razorpay_payload(payload, merchant_id=merchant.id, merchant_category=merchant.category)
@@ -241,7 +254,6 @@ def run_job(job_id: str, merchant: MerchantRow = Depends(require_merchant)) -> d
         job = s.get(RecoveryJobRow, job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Job not found")
-        # Force due now
         job.run_at = utcnow()
         if job.status == "pending":
             pass
@@ -319,3 +331,54 @@ def demo_credentials() -> dict:
         "webhook_secret": DEMO_WEBHOOK_SECRET,
         "note": "Local demo credentials. Change via env vars before any shared deploy.",
     }
+
+
+@app.post("/admin/magic-link/{failure_id}")
+def admin_create_magic_link(failure_id: str, merchant: MerchantRow = Depends(require_merchant)) -> dict:
+    row = db.get_failure(failure_id)
+    if not row or row.merchant_id != merchant.id:
+        raise HTTPException(status_code=404, detail="Failure not found")
+    return create_magic_link(failure_id, float(row.amount_inr), row.decline_code)
+
+
+@app.get("/recover/{token}", response_class=HTMLResponse)
+def recover_portal(token: str) -> HTMLResponse:
+    info = inspect_magic_link(token)
+    html = portal_page(
+        status=info.get("status", "invalid"),
+        amount_inr=info.get("amount_inr"),
+        decline_code=info.get("decline_code"),
+        expires_at=info.get("expires_at"),
+        token=token if info.get("status") == "active" else None,
+    )
+    return HTMLResponse(content=html)
+
+
+@app.post("/recover/{token}/confirm", response_class=HTMLResponse)
+def recover_confirm(token: str) -> HTMLResponse:
+    result = confirm_magic_link(token)
+    if result.get("ok"):
+        html = portal_page(
+            status="recovered",
+            amount_inr=result.get("recovered_amount"),
+            message=result.get("message"),
+        )
+    else:
+        html = portal_page(status=result.get("error", "invalid"), message=result.get("message"))
+    return HTMLResponse(content=html)
+
+
+@app.get("/recover/{token}/status")
+def recover_status(token: str) -> dict:
+    return inspect_magic_link(token)
+
+
+@app.post("/recover/{token}/confirm.json")
+def recover_confirm_json(token: str) -> dict:
+    return confirm_magic_link(token)
+
+
+# Recruiter console (public/index.html) at /console/
+_public = PROJECT_ROOT / "public"
+if _public.is_dir():
+    app.mount("/console", StaticFiles(directory=str(_public), html=True), name="console")

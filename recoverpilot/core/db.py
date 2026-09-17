@@ -145,6 +145,22 @@ class OutboxRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class MagicLinkRow(Base):
+    """Hashed single-use customer recovery tokens (never store raw token)."""
+
+    __tablename__ = "magic_links"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    failure_id: Mapped[str] = mapped_column(String(64), index=True)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    amount_inr: Mapped[float] = mapped_column(Float)
+    decline_code: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class AuditLogRow(Base):
     __tablename__ = "audit_logs"
 
